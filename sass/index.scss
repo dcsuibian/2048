@@ -1,0 +1,10 @@
+$box-size:100px;
+$box-spacing:5px;
+*{
+  margin:0;
+  padding: 0;
+}
+main{
+  width: $box-size;
+  height: $box-size;
+}
