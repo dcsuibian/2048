@@ -11,28 +11,42 @@ main{
   margin:0 auto;
 }
 .game-container{
-  width: 94%;
-  height: 94%;
-  padding: 3%;
+  width: 470px;
+  height: 470px;
+  padding: 15px;
   background-color: #bbada0;
 }
 .grid-container{
-  width: 100%;
-  height: 100%;
+  position: relative;
+  width: 470px;
+  height: 470px;
 }
 .grid-row{
-  width: 100%;
-  height: 106.25px/470px*100%;
-  margin-bottom: 15px/470px*100%;
+  width: 470px;
+  height: 106.25px;
+  margin-bottom: 15px;
 }
 
 .grid-cell{
-  width:106.25px/470px*100%;
-  height: 100%;
-  margin-right: 15px/470px*100%;
+  width:106.25px;
+  height: 106.25px;
+  margin-right: 15px;
   background-color: #cdc1b4;
   float: left;
 }
 .grid-cell:last-child{
   margin-right: 0;
+}
+
+.hover-grid{
+  color: #776e65;
+  font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 55px;
+  font-weight: 700;
+  position: absolute;
+  width:106.25px;
+  height: 106.25px;
+  text-align: center;
+  line-height: 106.25px;
+  background-color: #eee4da;
 }
