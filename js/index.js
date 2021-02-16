@@ -1,4 +1,7 @@
 'use strict';
+const moveTime = 0.25
+const newTime = 0.125
+
 //代码一律只考虑正方形
 class Utils {
   static createGrids(size, value = null) {
@@ -37,7 +40,6 @@ class Utils {
     return choices[Math.floor(Math.random() * choices.length)]
   }
 }
-
 
 
 class Chessboard {
@@ -97,7 +99,7 @@ class Chessboard {
   }
 
   move(direction) {
-    const changes=[]
+    const changes = []
     const posGen = this.traversal(direction)
     const offsets = {
       up: [-1, 0],
@@ -110,6 +112,8 @@ class Chessboard {
     const flagGrids = Utils.createGrids(this.size, false)
     for (let p of posGen) {
       const nowValue = grids[p[0]][p[1]]
+      if (null === nowValue)
+        continue
       let aP = p
       let to = [p[0] + offset[0], p[1] + offset[1]]
       while (true) {
@@ -132,28 +136,28 @@ class Chessboard {
       if (aP === p) {
         //do nothing，因为位置没变
       } else {
-        let change={}
+        let change = {}
         if (null === grids[aP[0]][aP[1]]) {
           grids[aP[0]][aP[1]] = nowValue
-          change.type='move'
+          change.type = 'move'
 
         } else {
           grids[aP[0]][aP[1]] = nowValue * 2
           flagGrids[aP[0]][aP[1]] = true
-          change.type='mix'
+          change.type = 'mix'
         }
-        change.from=p
-        change.to=aP
+        change.from = p
+        change.to = aP
         grids[p[0]][p[1]] = null
-
+        changes.push(change)
       }
     }
     const new2 = Utils.randomEmptyPosition(grids)
     grids[new2[0]][new2[1]] = 2
-    let change={}
-    change.type='new'
-    changes.position=new2
-    change.value=2
+    let change = {}
+    change.type = 'new'
+    change.position = new2
+    change.value = 2
     changes.push(change)
     this.grids = grids
     this.print()
@@ -172,44 +176,138 @@ class Chessboard {
 }
 
 const gridContainer = document.getElementsByClassName('grid-container')[0];
-class Display{
+
+class Display {
   chessboard
   elementGrids
+
   constructor(chessboard) {
-    this.chessboard=chessboard
-    this.elementGrids=Utils.createGrids(chessboard.size,null)
+    this.chessboard = chessboard
+    this.elementGrids = Utils.createGrids(chessboard.size, null)
     this.init()
   }
-  init(){
-    const size=this.chessboard.size
-    const grids=this.chessboard.grids
-    for(let i=0;i<size;i++){
-      for(let j=0;j<size;j++){
-        if(null!==grids[i][j]){
-          const element=document.createElement('div')
+
+  init() {
+    const size = this.chessboard.size
+    const grids = this.chessboard.grids
+    for (let i = 0; i < size; i++) {
+      for (let j = 0; j < size; j++) {
+        if (null !== grids[i][j]) {
+          const element = document.createElement('div')
           element.appendChild(document.createTextNode(String(grids[i][j])))
           element.classList.add('hover-grid')
-          element.style.top=i*(106.25+15)+'px'
-          element.style.left=j*(106.25+15)+'px'
+          element.style.top = i * (106.25 + 15) + 'px'
+          element.style.left = j * (106.25 + 15) + 'px'
           gridContainer.appendChild(element)
-          this.elementGrids[i][j]=element
+          this.elementGrids[i][j] = element
         }
       }
     }
   }
-  receive(changes){
-    new Promise((resolve, reject) => {
-      window.requestAnimationFrame(()=>{
 
-      })
-    }).then((id)=>{
-      window.cancelAnimationFrame(id)
+  getStylePosition(position) {
+    const [i, j] = position
+    return {top: i * (106.25 + 15), left: j * (106.25 + 15)}
+  }
+
+  receive(changes) {
+    const moves = changes.filter(value => 'move' === value.type || 'mix' === value.type)
+    const mixes = changes.filter(value => 'mix' === value.type)
+    const news = changes.filter(value => 'new' === value.type)
+    new Promise((resolve, reject) => {
+      const startTime = Date.now()
+      let id = null;
+      const callback = () => {
+        const passed = Date.now() - startTime
+        const nowTime = Date.now()
+        if (passed < moveTime * 1000) {
+          const ratio = passed / (moveTime * 1000)
+          for (let change of moves) {
+            const from = change.from
+            const fromPosition = this.getStylePosition(from)
+            const to = change.to
+            const toPosition = this.getStylePosition(to)
+            const element = this.elementGrids[from[0]][from[1]]
+            element.style.top = (fromPosition.top + (toPosition.top - fromPosition.top) * ratio) + 'px'
+            element.style.left = (fromPosition.left + (toPosition.left - fromPosition.left) * ratio) + 'px'
+          }
+          window.requestAnimationFrame(callback)
+        } else {
+          for (let change of moves) {
+            const from = change.from
+            const to = change.to
+            const toPosition = this.getStylePosition(to)
+            const element = this.elementGrids[from[0]][from[1]]
+            element.style.top = toPosition.top + 'px'
+            element.style.left = toPosition.left + 'px'
+
+            if ('mix' === change.type) {
+              gridContainer.removeChild(this.elementGrids[to[0]][to[1]])
+            }
+            this.elementGrids[to[0]][to[1]] = element
+            this.elementGrids[from[0]][from[1]] = null
+          }
+          window.cancelAnimationFrame(id)
+          resolve()
+        }
+      }
+      callback()
+    }).then(() => {
+      for (let change of mixes) {
+        const from = change.from
+        const to = change.to
+        const toPosition = this.getStylePosition(to)
+        gridContainer.removeChild(this.elementGrids[to[0]][to[1]])
+        const element = document.createElement('div')
+        element.appendChild(document.createTextNode(String(this.chessboard.grids[to[0]][to[1]])))
+        element.classList.add('hover-grid')
+        element.style.top = toPosition.top + 'px'
+        element.style.left = toPosition.left + 'px'
+        gridContainer.appendChild(element)
+        this.elementGrids[to[0]][to[1]] = element
+      }
+      for (let change of news) {
+        const p = change.position
+        const toPosition = this.getStylePosition(p)
+        const element = document.createElement('div')
+        element.appendChild(document.createTextNode(String(this.chessboard.grids[p[0]][p[1]])))
+        element.classList.add('hover-grid')
+        element.style.top = toPosition.top + 'px'
+        element.style.left = toPosition.left + 'px'
+        element.style.transform = 'scale(0,0)'
+        gridContainer.appendChild(element)
+        this.elementGrids[p[0]][p[1]] = element
+      }
+
+      const startTime = Date.now()
+      let id = null;
+      const callback = () => {
+        const passed = Date.now() - startTime
+        const ratio = Math.min(passed / (newTime * 1000), 1)
+        for (let change of mixes) {
+          const p = change.to
+          const element = this.elementGrids[p[0]][p[1]]
+          const scale=1+(0.5-Math.abs(ratio-0.5))*0.25
+          element.style.transform = 'scale(' + scale + ',' + scale + ')'
+        }
+        for (let change of news) {
+          const p = change.position
+          const element = this.elementGrids[p[0]][p[1]]
+          element.style.transform = 'scale(' + ratio + ',' + ratio + ')'
+        }
+        if (passed < newTime * 1000) {
+          id=window.requestAnimationFrame(callback)
+        }else{
+          window.cancelAnimationFrame(id)
+        }
+      }
+      callback()
     })
   }
 }
 
 let chessboard = new Chessboard();
-let display=new Display(chessboard)
+let display = new Display(chessboard)
 chessboard.print()
 
 //为键盘方向键增加监听事件
